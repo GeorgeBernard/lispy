@@ -1,2 +1,2 @@
 #!/bin/bash
-gcc -std=c99 -g -Wall evaluation.c mpc.c -ledit -lm -o lispy;
+gcc -std=c99 -g -Wall main.c mpc.c lisputils.c builtin.c lvalue.c lenviron.c -ledit -lm -o lispy;
