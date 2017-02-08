@@ -20,6 +20,7 @@ struct lval
 	long num;
 	char* err;
 	char* sym;
+	char* str;
 
 	/* Function */
 	lbuiltin builtin;
@@ -38,11 +39,13 @@ struct lval
 void lval_print(lval* v);
 void lval_println(lval* v);
 void lval_expr_print(lval* v, char open, char close);
+void lval_print_str(lval* v);
 
 /* lval constructors */
 lval* lval_num(long x);
 lval* lval_err(char* fmt, ...);
 lval* lval_sym(char* m);
+lval* lval_str(char* s);
 lval* lval_sexpr(void);
 lval* lval_qexpr(void);
 lval* lval_fun(lbuiltin func);
@@ -58,8 +61,9 @@ void lval_del(lval* v);
 lval* lval_copy(lval* v);
 
 /* Lval Readers */
-lval* lval_read_num(mpc_ast_t* t);
 lval* lval_read(mpc_ast_t* t);
+lval* lval_read_num(mpc_ast_t* t);
+lval* lval_read_str(mpc_ast_t* t);
 
 /* Lval operators */
 lval* lval_add(lval* v, lval* x);
@@ -68,5 +72,8 @@ lval* lval_eval_sexpr(lenv* e, lval* v);
 lval* lval_eval(lenv* e, lval* v);
 lval* lval_pop(lval* v, int i);
 lval* lval_take(lval* v, int i);
+
+/* Lval equality */
+int lval_eq(lval* x, lval* y);
 
 #endif

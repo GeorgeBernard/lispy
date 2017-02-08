@@ -58,10 +58,16 @@ void lenv_def(lenv* e, lval* k, lval* v) {
 
 
 void lenv_add_builtins(lenv* e){
+
+	/* String Functions */
+	lenv_add_builtin(e, "load", builtin_load);
+	lenv_add_builtin(e, "error", builtin_error);
+	lenv_add_builtin(e, "print", builtin_print);
+
 	/* Variable Functions */
-	lenv_add_builtin(e, "\\", builtin_lambda);
+	lenv_add_builtin(e, "\\",  builtin_lambda);
 	lenv_add_builtin(e, "def", builtin_def);
-	lenv_add_builtin(e, "=", builtin_put);
+	lenv_add_builtin(e, "=",   builtin_put);
 
 	/* List Functions */
 	lenv_add_builtin(e, "list", builtin_list);
@@ -74,7 +80,16 @@ void lenv_add_builtins(lenv* e){
 	lenv_add_builtin(e, "+", builtin_add);
 	lenv_add_builtin(e, "-", builtin_sub);
 	lenv_add_builtin(e, "*", builtin_mul);
-	lenv_add_builtin(e, "/", builtin_div);	
+	lenv_add_builtin(e, "/", builtin_div);
+
+	/* Comparison Functions */
+	lenv_add_builtin(e, "if", builtin_if);
+	lenv_add_builtin(e, "==", builtin_eq);
+	lenv_add_builtin(e, "!=", builtin_ne);
+	lenv_add_builtin(e, ">",  builtin_gt);
+	lenv_add_builtin(e, "<",  builtin_lt);
+	lenv_add_builtin(e, ">=", builtin_ge);
+	lenv_add_builtin(e, "<=", builtin_le);	
 }
 
 lenv* lenv_copy(lenv* e) {

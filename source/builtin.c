@@ -3,10 +3,14 @@
 // Standard Includes
 #include <string.h>
 
+// Library Includes
+#include "mpc.h"
+
 // Local Includes 
 #include "lisputils.h"
 #include "lenviron.h"
 #include "lvalue.h"
+#include "main.h"
 
 // Header Include
 #include "builtin.h"
@@ -206,4 +210,172 @@ lval* builtin_op(lenv* e, lval* a, char* op){
 	lval_del(a);
 
 	return x;
+}
+
+/*====================================== Ordering Operators ======================================*/
+
+lval* builtin_ord(lenv* e, lval* a, char* op) {
+	// Assert two arguments, both numbers
+	LASSERT_NUM(op, a, 2);
+	LASSERT_TYPE(op, a, 0, LVAL_NUM);
+	LASSERT_TYPE(op, a, 1, LVAL_NUM);
+
+	// Based on operator simply perform that comparison
+	int r;
+	if (strcmp(op, ">") == 0) {
+		r = (a->cell[0]->num > a->cell[1]->num);
+	}
+	if (strcmp(op, "<") == 0) {
+		r = (a->cell[0]->num < a->cell[1]->num);
+	}
+	if (strcmp(op, ">=") == 0) {
+		r = (a->cell[0]->num >= a->cell[1]->num);
+	}
+	if (strcmp(op, "<=") == 0) {
+		r = (a->cell[0]->num <= a->cell[1]->num);
+	}
+
+	// Cleanup and return
+	lval_del(a);
+	return lval_num(r);
+
+}
+
+lval* builtin_gt(lenv* e, lval* a){
+	return builtin_ord(e, a, ">");
+}
+
+lval* builtin_lt(lenv* e, lval* a){
+	return builtin_ord(e, a, "<");
+}
+
+lval* builtin_ge(lenv* e, lval* a){
+	return builtin_ord(e, a, ">=");
+}
+
+lval* builtin_le(lenv* e, lval* a){
+	return builtin_ord(e, a, "<=");
+}
+
+/*====================================== Equality Operators ======================================*/
+
+lval* builtin_cmp(lenv* e, lval* a, char* op){
+	// Assert two arguments
+	LASSERT_NUM(op, a, 2);
+
+	int r;
+	if (strcmp(op, "==") == 0) {
+		r = lval_eq(a->cell[0], a->cell[1]);
+	}
+	if (strcmp(op, "!=") == 0) {
+		r = !lval_eq(a->cell[0], a->cell[1]);
+	}
+
+	lval_del(a);
+	return lval_num(r);
+}
+
+lval* builtin_eq(lenv* e, lval* a){
+	return builtin_cmp(e, a, "==");
+}
+
+lval* builtin_ne(lenv* e, lval* a){
+	return builtin_cmp(e, a, "!=");
+}
+
+/*==================================== Conditional branching ====================================*/
+
+lval* builtin_if(lenv* e, lval* a) {
+	/* Assert Three Arguments, First is number, followed by two Q-expr */
+	LASSERT_NUM("if", a, 3);
+	LASSERT_TYPE("if", a, 0, LVAL_NUM);	
+	LASSERT_TYPE("if", a, 1, LVAL_QEXPR);
+	LASSERT_TYPE("if", a, 2, LVAL_QEXPR);	
+
+	/* Mark both Expressions as evaluable (i.e. S-expr) */
+	lval* x;
+	a->cell[1]->type = LVAL_SEXPR;
+	a->cell[2]->type = LVAL_SEXPR;
+
+	if (a->cell[0]->num) {
+		/* If condition is true evaluate first expression */
+		x = lval_eval(e, lval_pop(a, 1));
+	} else {
+		x = lval_eval(e, lval_pop(a, 2));
+	}
+
+	// Cleanup and return
+	lval_del(a);
+	return x;
+}
+
+lval* builtin_load (lenv* e, lval* a) {
+	// Assert 1 String argument
+	LASSERT_NUM("load", a, 1);
+	LASSERT_TYPE("load", a, 0, LVAL_STR);
+
+	/* Parse File given by string name */
+	mpc_result_t r;
+	if (mpc_parse_contents(a->cell[0]->str, Lispy, &r)) {
+
+		/* Read contents */
+		lval* expr = lval_read(r.output);
+		mpc_ast_delete(r.output);
+
+		/* Evaluate each Expression */
+		while (expr->count) {
+			lval* x = lval_eval(e, lval_pop(expr, 0));
+			/* If Evaluation leads to error print it */
+			if (x->type == LVAL_ERR) { lval_println(x); }
+			lval_del(x);
+		}
+
+		/* Delete expressions and arguments */
+		lval_del(expr);
+		lval_del(a);
+
+		/* Return empty list */
+		return lval_sexpr();
+
+	} else {
+		/* Get Parse Error as String */
+		char* err_msg = mpc_err_string(r.error);
+		mpc_err_delete(r.error);
+
+		/* Create new error message using it */
+		lval* err = lval_err("Could not load Library %s", err_msg);
+		free(err_msg);
+		lval_del(a);
+
+		/* Cleanup and return error */
+		return err;
+	}
+}
+
+lval* builtin_print (lenv* e, lval* a) {
+
+	/* Print each argument followed by a space */
+	for ( int i = 0; i < a->count; i++) {
+		lval_print(a->cell[i]); putchar(' ');
+	}
+
+	/* Print a newline and delete arguments */
+	putchar('\n');
+	lval_del(a);
+
+	return lval_sexpr();
+}
+
+
+lval* builtin_error (lenv* e, lval* a) {
+	// Assert one string arg
+	LASSERT_NUM("error", a , 1);
+	LASSERT_TYPE("error", a, 0, LVAL_STR);
+
+	/* Construct error from first arg */
+	lval* err = lval_err(a->cell[0]->str);
+
+	// Cleanup and return
+	lval_del(a);
+	return err;
 }

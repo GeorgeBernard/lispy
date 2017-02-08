@@ -195,6 +195,27 @@ lval* lval_join(lval* x, lval* y) {
 	return x;
 }
 
+lval* lval_read_str(mpc_ast_t* t) {
+	
+	/* Cut off the final quote character */
+	t->contents[strlen(t->contents)-1] = '\0';
+	
+	/* Copy the string missing out the first quote character */
+	char* unescaped = malloc(strlen(t->contents + 1) + 1);
+	strcpy(unescaped, t->contents+1);
+	
+	/* Pass through the unescape function */
+	unescaped = mpcf_unescape(unescaped);
+
+	/* Construct a new lval using the string */
+	lval* str = lval_str(unescaped);
+
+	/* Free the string and return */
+	free(unescaped);
+	return str;
+}
+
+
 lval* lval_read_num(mpc_ast_t* t) {
 	errno = 0;
 	long x = strtol(t->contents, NULL, 10);
@@ -207,6 +228,7 @@ lval* lval_read(mpc_ast_t* t) {
 	/* If Symbol or Number return conversion to that type */
 	if (strstr(t->tag, "number")) {	return lval_read_num(t); }
 	if (strstr(t->tag, "symbol")) { return lval_sym(t->contents); }
+	if (strstr(t->tag, "string")) { return lval_read_str(t); }
 
 	/* If root (>) or s-expr then create empty list */
 	lval* x = NULL;
@@ -216,6 +238,7 @@ lval* lval_read(mpc_ast_t* t) {
 
 	/* Fill this list with any valid expression contained within */
 	for (int i = 0; i < t->children_num; i++) {
+		if (strstr(t->children[i]->tag, "comment"))     { continue; }
     	if (strcmp(t->children[i]->contents, "(") == 0) { continue; }
     	if (strcmp(t->children[i]->contents, ")") == 0) { continue; }
     	if (strcmp(t->children[i]->contents, "}") == 0) { continue; }
@@ -282,6 +305,9 @@ lval* lval_copy(lval* v) {
 		case LVAL_SYM:
 			x->sym = malloc(strlen(v->sym) + 1);
 			strcpy(x->sym, v->sym); break;
+		case LVAL_STR:
+			x->str = malloc(strlen(v->str) + 1);
+			strcpy(x->str, v->str); break;
 
 		/* Copy Lists by copying each sub-expression */
 		case LVAL_SEXPR:
@@ -355,6 +381,15 @@ lval* lval_sym(char* s) {
 	return v;
 }
 
+/* Construct a pointer to a new string lval */
+lval* lval_str(char* s) {
+	lval* v = malloc(sizeof(lval));
+	v->type = LVAL_STR;
+	v->str = malloc(strlen(s) + 1);
+	strcpy(v->str, s);
+	return v;
+}
+
 /* Construct a pointer to a new empty Sexpr lval */
 lval* lval_sexpr(void) {
 	lval* v = malloc(sizeof(lval));
@@ -398,9 +433,10 @@ void lval_del(lval* v) {
 			}
 		break;
 
-		/* For Err or Sym free the string data*/
+		/* For Err, Sym, or Str free the string data*/
 		case LVAL_ERR: free(v->err); break;
 		case LVAL_SYM: free(v->sym); break;
+		case LVAL_STR: free(v->str); break;
 
 		/* If Q-expr or S-expr then delete all elements inside */
 		case LVAL_SEXPR:
@@ -420,9 +456,10 @@ void lval_del(lval* v) {
 
 void lval_print(lval* v) {
 	switch(v->type) {
-		case LVAL_NUM: 	 printf("%li", v->num); break;
-		case LVAL_ERR: 	 printf("Error: %s", v->err); break;
-		case LVAL_SYM: 	 printf("%s", v->sym); break;
+		case LVAL_NUM: printf("%li", v->num); break;
+		case LVAL_ERR: printf("Error: %s", v->err); break;
+		case LVAL_SYM: printf("%s", v->sym); break;
+		case LVAL_STR: lval_print_str(v); break;	 
 		case LVAL_FUN:
 			if ( v->builtin != NULL ) {
 				printf("<builtin>");
@@ -440,3 +477,58 @@ void lval_print(lval* v) {
 
 /* Print an "lval" followed by a newline */
 void lval_println(lval* v) { lval_print(v); putchar('\n'); }
+
+int lval_eq(lval* x, lval* y) { 
+	/* Different types are always unequal */
+	if (x->type != y->type) { return 0; }
+
+	/* Compare Based on type */
+	switch (x->type) {
+
+	case LVAL_NUM: return (x->num == y->num);
+
+	/* Compare String values */
+	case LVAL_ERR: return (strcmp(x->err, y->err) == 0);
+	case LVAL_SYM: return (strcmp(x->sym, y->sym) == 0);
+	case LVAL_STR: return (strcmp(x->str, y->str) == 0);
+
+	/* If builtin compare, otherwise compare formals and body */
+	case LVAL_FUN: 
+		if(x->builtin || y->builtin) {
+			return x->builtin == y->builtin;
+		} else {
+			return lval_eq(x->formals, y->formals) && lval_eq(x->body, y->body);
+		}
+
+	/* If list compare every individual element */
+	case LVAL_QEXPR: 
+	case LVAL_SEXPR: 	
+		if (x->count != y->count) {return 0;}
+		for (int i = 0; i < x->count; i++) {
+			/* If any element not equal then whole list not equal */
+			if (!lval_eq(x->cell[i], y->cell[i])) { return 0; }
+		}
+		/* O.w. lists must be equal */
+		return 1;
+	break;
+	
+	}
+
+	// If any doubt, just return false
+	return 0;
+}
+
+void lval_print_str(lval* v) {
+	/* Make and operate on copy of the string */
+	char* escaped = malloc(strlen(v->str) + 1);
+	strcpy(escaped, v->str);
+
+	/* Pass it through the escape function */
+	escaped = mpcf_escape(escaped);
+
+	/* Print it in quotes */
+	printf("\"%s\"", escaped);
+
+	/* Cleanup */
+	free(escaped);
+}
