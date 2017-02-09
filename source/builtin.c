@@ -10,7 +10,7 @@
 #include "lisputils.h"
 #include "lenviron.h"
 #include "lvalue.h"
-#include "main.h"
+#include "parse.h"
 
 // Header Include
 #include "builtin.h"
@@ -53,7 +53,7 @@ lval* builtin_lambda(lenv* e, lval* a) {
 }
 
 lval* builtin_var(lenv* e, lval* a, char* func) {
-	LASSERT_TYPE(func, a, 0, LVAL_QEXPR); 
+	LASSERT_TYPE(func, a, 0, LVAL_QEXPR);
 
 	/* First argument is symbol list */
 	lval* syms = a->cell[0];
