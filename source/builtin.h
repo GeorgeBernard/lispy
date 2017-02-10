@@ -9,27 +9,33 @@ typedef struct lval lval;
 
 /*===================================== Declared Functions =====================================*/
 
+/* Builtin Infrastructure */
 lval* builtin(lenv* e, lval* a, char* func);
-lval* builtin_op(lenv* e, lval* a, char* op);
 
+/* Variable Setters */
 lval* builtin_var(lenv* e, lval* a, char* func);
 lval* builtin_def(lenv* e, lval* a);
 lval* builtin_put(lenv* e, lval* a);
 
+/* Lambda expressions */
 lval* builtin_lambda(lenv* e, lval* a);
 
+/* List Operators */
+lval* builtin_list(lenv* e, lval* a);
 lval* builtin_head(lenv* e, lval* a);
 lval* builtin_tail(lenv* e, lval* a);
-
-lval* builtin_list(lenv* e, lval* a);
 lval* builtin_eval(lenv* e, lval* a);
 lval* builtin_join(lenv* e, lval* a);
 
 /* Arithmetic Operators */
+lval* builtin_op(lenv* e, lval* a, char* op);
 lval* builtin_add(lenv* e, lval* a);
 lval* builtin_sub(lenv* e, lval* a);
 lval* builtin_mul(lenv* e, lval* a);
 lval* builtin_div(lenv* e, lval* a);
+
+lval* builtin_mod(lenv* e, lval* a);
+lval* builtin_exp(lenv* e, lval* a);
 
 /* Ordering Operators */
 lval* builtin_ord(lenv* e, lval* a, char* op);

@@ -1,5 +1,5 @@
 
-/*=========================================== Includes ===========================================*/
+/*========================================= Includes =========================================*/
 // Standard Includes
 #include <string.h>
 
@@ -14,6 +14,8 @@
 
 // Header Include
 #include "builtin.h"
+
+/*================================== Builtin Infrastructure ==================================*/
 
 lval* builtin(lenv* e, lval* a, char* func) {
 	if (strcmp("list", func) == 0) { return builtin_list(e, a); }
@@ -51,6 +53,8 @@ lval* builtin_lambda(lenv* e, lval* a) {
 
 	return lval_lambda(formals, body);
 }
+
+/*===================================== Lambda Expressions =====================================*/
 
 lval* builtin_var(lenv* e, lval* a, char* func) {
 	LASSERT_TYPE(func, a, 0, LVAL_QEXPR);
@@ -93,6 +97,52 @@ lval* builtin_def(lenv* e, lval* a) {
 	return builtin_var(e, a, "def");
 }
 
+/*=================================== Arithmetic Operations ===================================*/
+
+
+lval* builtin_op(lenv* e, lval* a, char* op){
+
+	/* Ensure all arguments are numbers */
+	for (int i = 0; i < a->count; i++) {
+		if(a->cell[i]->type != LVAL_NUM) {
+			LASSERT_TYPE(op, a, i, LVAL_NUM);
+		}
+	}
+
+	/* Pop the first element */
+	lval* x = lval_pop(a, 0);
+
+	/* If no arguments and sub then perform unary negation */
+	if ( (strcmp(op, "-") == 0) && (a->count == 0) ) {
+		x->num = -x->num;
+	}
+
+	/* While there are still elements remaining */
+	while (a->count > 0) {
+
+		/* Pop the next element */
+		lval* y = lval_pop(a, 0);
+
+		if ( strcmp(op, "+") == 0 ) { x->num += y->num; }
+		if ( strcmp(op, "-") == 0 ) { x->num -= y->num; }
+		if ( strcmp(op, "*") == 0 ) { x->num *= y->num; }
+		if ( strcmp(op, "/") == 0 ) { 
+			if (y->num == 0) {
+				lval_del(x); 
+				lval_del(y);
+				x = lval_err("Division by Zero!"); 
+				break;
+			}
+			x->num /= y->num; 
+		}
+
+		lval_del(y);
+	}
+
+	lval_del(a);
+
+	return x;
+}
 
 lval* builtin_add(lenv* e, lval* a) {
 	return builtin_op(e, a, "+");
@@ -109,6 +159,40 @@ lval* builtin_mul(lenv* e, lval* a) {
 lval* builtin_div(lenv* e, lval* a) {
 	return builtin_op(e, a, "/");
 }
+
+lval* builtin_mod(lenv* e, lval* a) {
+	// Assert two arguments, both numbers
+	LASSERT_NUM("% (modulo)", a, 2);
+	LASSERT_TYPE("% (modulo)", a, 0, LVAL_NUM);
+	LASSERT_TYPE("% (modulo)", a, 1, LVAL_NUM);
+	LASSERT(a, a->cell[1]->num != 0, 
+		"%d mod 0 is undefined", 
+		a->cell[0]->num);
+
+	// Create output
+	lval* v = lval_num(a->cell[0]->num % a->cell[1]->num);
+
+	// Cleanup and return
+	lval_del(a);
+	return v;
+}
+
+lval* builtin_exp(lenv* e, lval* a) {
+	// Assert two argyments, both numbers
+	LASSERT_NUM("^ (exp)", a, 2);
+	LASSERT_TYPE("^ (exp)", a, 0, LVAL_NUM);
+	LASSERT_TYPE("^ (exp)", a, 1, LVAL_NUM);
+
+	// Create output
+	lval* v = lval_num( pow(a->cell[0]->num, a->cell[1]->num) );
+
+	// Cleanup and return
+	lval_del(a);
+	return v;
+}
+
+
+/*====================================== List Operations ======================================*/
 
 lval* builtin_head(lenv* e, lval* a) {
 	/* Check Error Conditions */
@@ -165,50 +249,6 @@ lval* builtin_join(lenv* e, lval* a) {
 	}
 
 	lval_del(a);
-	return x;
-}
-
-lval* builtin_op(lenv* e, lval* a, char* op){
-
-	/* Ensure all arguments are numbers */
-	for (int i = 0; i < a->count; i++) {
-		if(a->cell[i]->type != LVAL_NUM) {
-			LASSERT_TYPE(op, a, i, LVAL_NUM);
-		}
-	}
-
-	/* Pop the first element */
-	lval* x = lval_pop(a, 0);
-
-	/* If no arguments and sub then perform unary negation */
-	if ( (strcmp(op, "-") == 0) && (a->count == 0) ) {
-		x->num = -x->num;
-	}
-
-	/* While there are still elements remaining */
-	while (a->count > 0) {
-
-		/* Pop the next element */
-		lval* y = lval_pop(a, 0);
-
-		if ( strcmp(op, "+") == 0 ) { x->num += y->num; }
-		if ( strcmp(op, "-") == 0 ) { x->num -= y->num; }
-		if ( strcmp(op, "*") == 0 ) { x->num *= y->num; }
-		if ( strcmp(op, "/") == 0 ) { 
-			if (y->num == 0) {
-				lval_del(x); 
-				lval_del(y);
-				x = lval_err("Division by Zero!"); 
-				break;
-			}
-			x->num /= y->num; 
-		}
-
-		lval_del(y);
-	}
-
-	lval_del(a);
-
 	return x;
 }
 
