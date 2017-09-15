@@ -26,5 +26,6 @@ be portable, but no promises.
 ## Additions
 
 The first addition I made was to seperate up the behemoth that was this program.
-In my opinion any file over 500 lines should be deeply questioned. I seperated it
-first into 
+In my opinion any file over 500 lines should be deeply questioned. The tutorial 
+kept the entire program in one megafile, but I split it up into logical groups of 
+functions.
